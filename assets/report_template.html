@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title | default("Data Analysis Report") }}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #1f2328;
+      background: #ffffff;
+    }
+    .page { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .report-header {
+      border-bottom: 2px solid #3b82d4;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }
+    .report-header h1 { font-size: 26px; color: #1f2328; margin-bottom: 4px; }
+    .report-header .meta { font-size: 12px; color: #57606a; }
+
+    /* ── Section ─────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 40px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .section-header {
+      background: #f7f8fa;
+      padding: 12px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-header h2 { font-size: 16px; color: #1f2328; }
+    .section-body { padding: 20px; }
+
+    /* ── KV grid ─────────────────────────────────────────────── */
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .kv-card {
+      background: #f7f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 12px 14px;
+    }
+    .kv-card .label { font-size: 11px; color: #57606a; text-transform: uppercase; letter-spacing: .04em; }
+    .kv-card .value { font-size: 20px; font-weight: 600; color: #1f2328; margin-top: 2px; }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    thead { background: #f7f8fa; }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
+    th { font-weight: 600; color: #57606a; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7f8fa; }
+
+    /* ── Charts ──────────────────────────────────────────────── */
+    .chart-img {
+      max-width: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      display: block;
+      margin: 12px auto;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    /* ── Text blocks ─────────────────────────────────────────── */
+    .insight-block {
+      background: #f7f8fa;
+      border-left: 4px solid #3b82d4;
+      padding: 14px 18px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: #1f2328;
+      white-space: pre-wrap;
+    }
+    .qa-block {
+      margin-top: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+    }
+    .qa-question {
+      background: #f7f8fa;
+      padding: 10px 14px;
+      font-weight: 600;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .qa-answer {
+      padding: 10px 14px;
+      white-space: pre-wrap;
+    }
+    .rec-list { list-style: none; padding: 0; margin-top: 8px; }
+    .rec-list li {
+      padding: 8px 12px 8px 30px;
+      border-bottom: 1px solid #e5e7eb;
+      position: relative;
+    }
+    .rec-list li:last-child { border-bottom: none; }
+    .rec-list li::before {
+      content: "→";
+      position: absolute;
+      left: 10px;
+      color: #3b82d4;
+    }
+
+    /* ── Badge ───────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .report-footer {
+      margin-top: 60px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 12px;
+      color: #57606a;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════════════════ -->
+  <div class="report-header">
+    <h1>{{ title | default("Data Analysis Report") }}</h1>
+    <div class="meta">
+      Generated: {{ generated_at }}
+      {% if dataset_name %} &nbsp;|&nbsp; Dataset: <strong>{{ dataset_name }}</strong>{% endif %}
+    </div>
+  </div>
+
+  <!-- ═══ 1. DATASET PROFILE ════════════════════════════════════════════════ -->
+  {% if profile %}
+  <div class="section">
+    <div class="section-header"><h2>Dataset Profile</h2></div>
+    <div class="section-body">
+
+      {% set shape = profile.get("shape", {}) %}
+      <div class="kv-grid">
+        {% if shape.rows is defined %}
+        <div class="kv-card"><div class="label">Rows</div><div class="value">{{ shape.rows | int_fmt }}</div></div>
+        <div class="kv-card"><div class="label">Columns</div><div class="value">{{ shape.columns | int_fmt }}</div></div>
+        {% endif %}
+        {% set mem = profile.get("memory_usage_bytes") %}
+        {% if mem is not none %}
+        <div class="kv-card"><div class="label">Memory</div><div class="value">{{ mem | bytes_fmt }}</div></div>
+        {% endif %}
+        {% set null_counts = profile.get("null_counts", {}) %}
+        {% set total_nulls = null_counts.values() | sum %}
+        <div class="kv-card"><div class="label">Total Nulls</div><div class="value">{{ total_nulls | int_fmt }}</div></div>
+      </div>
+
+      {% set numeric_stats = profile.get("numeric_stats", {}) %}
+      {% if numeric_stats %}
+      <h3 style="margin:16px 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Numeric Column Statistics</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th><th>Count</th><th>Mean</th><th>Std</th>
+            <th>Min</th><th>Median</th><th>Max</th><th>Skewness</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for col, stats in numeric_stats.items() %}
+          <tr>
+            <td>{{ col }}</td>
+            <td>{{ stats.count | int_fmt }}</td>
+            <td>{{ stats.mean | num_fmt }}</td>
+            <td>{{ stats.std | num_fmt }}</td>
+            <td>{{ stats.min | num_fmt }}</td>
+            <td>{{ stats.median | num_fmt }}</td>
+            <td>{{ stats.max | num_fmt }}</td>
+            <td>{{ stats.skewness | num_fmt }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% set cat_stats = profile.get("categorical_stats", {}) %}
+      {% if cat_stats %}
+      <h3 style="margin:20px 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Categorical Column Statistics</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Count</th><th>Unique</th><th>Top Value</th><th>Top Frequency</th></tr></thead>
+        <tbody>
+          {% for col, stats in cat_stats.items() %}
+          <tr>
+            <td>{{ col }}</td>
+            <td>{{ stats.count | int_fmt }}</td>
+            <td>{{ stats.cardinality | int_fmt }}</td>
+            <td>{{ stats.mode | default("—") }}</td>
+            <td>
+              {% if stats.top_values %}
+                {% set top_items = stats.top_values.items() | list %}
+                {% if top_items %}{{ top_items[0][1] | int_fmt }}{% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 2. DATA QUALITY ═══════════════════════════════════════════════════ -->
+  {% if data_quality %}
+  <div class="section">
+    <div class="section-header"><h2>Data Quality</h2></div>
+    <div class="section-body">
+      {% set null_pct = data_quality.get("null_percentages", {}) %}
+      {% if null_pct %}
+      <h3 style="margin:0 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Null Percentages by Column</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Null %</th></tr></thead>
+        <tbody>
+          {% for col, pct in null_pct.items() %}
+          {% if pct is not none and pct > 0 %}
+          <tr><td>{{ col }}</td><td>{{ pct | round(2) }}%</td></tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% set outlier_info = data_quality.get("outlier_info") %}
+      {% if outlier_info %}
+      <h3 style="margin:20px 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Outlier Counts</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Outlier Count</th></tr></thead>
+        <tbody>
+          {% for col, cnt in outlier_info.items() %}
+          <tr><td>{{ col }}</td><td>{{ cnt | int_fmt }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% set dq_notes = data_quality.get("notes", []) %}
+      {% if dq_notes %}
+      <ul style="margin-top:12px;padding-left:20px;">
+        {% for note in dq_notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 3. EDA RESULTS ════════════════════════════════════════════════════ -->
+  {% if eda %}
+  <div class="section">
+    <div class="section-header"><h2>Exploratory Data Analysis</h2></div>
+    <div class="section-body">
+
+      {% set top_corr = eda.get("top_correlations", []) %}
+      {% if top_corr %}
+      <h3 style="margin:0 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Top Correlations</h3>
+      <table>
+        <thead><tr><th>Feature A</th><th>Feature B</th><th>Correlation</th></tr></thead>
+        <tbody>
+          {% for item in top_corr %}
+          <tr>
+            <td>{{ item.feature_a }}</td>
+            <td>{{ item.feature_b }}</td>
+            <td>{{ item.correlation | num_fmt }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% set skewed = eda.get("skewed_columns", []) %}
+      {% if skewed %}
+      <h3 style="margin:20px 0 8px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">Skewed Columns</h3>
+      <table>
+        <thead><tr><th>Column</th><th>Skewness</th></tr></thead>
+        <tbody>
+          {% for item in skewed %}
+          <tr><td>{{ item.column }}</td><td>{{ item.skewness | num_fmt }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      {% set eda_charts = eda.get("charts", []) %}
+      {% if eda_charts %}
+      <div class="chart-grid">
+        {% for img_b64 in eda_charts %}
+        <img class="chart-img" src="data:image/png;base64,{{ img_b64 }}" alt="EDA chart">
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 4. ML METRICS ════════════════════════════════════════════════════ -->
+  {% if ml_metrics %}
+  <div class="section">
+    <div class="section-header">
+      <h2>Machine Learning Metrics</h2>
+      <span class="badge">{{ ml_metrics.get("task_type", "") }}</span>
+    </div>
+    <div class="section-body">
+
+      <div class="kv-grid">
+        {% if ml_metrics.get("model_name") %}
+        <div class="kv-card"><div class="label">Model</div><div class="value" style="font-size:14px">{{ ml_metrics.model_name }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("accuracy") is not none %}
+        <div class="kv-card"><div class="label">Accuracy</div><div class="value">{{ (ml_metrics.accuracy * 100) | round(1) }}%</div></div>
+        {% endif %}
+        {% if ml_metrics.get("f1_weighted") is not none %}
+        <div class="kv-card"><div class="label">F1 (weighted)</div><div class="value">{{ ml_metrics.f1_weighted | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("roc_auc") is not none %}
+        <div class="kv-card"><div class="label">ROC-AUC</div><div class="value">{{ ml_metrics.roc_auc | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("rmse") is not none %}
+        <div class="kv-card"><div class="label">RMSE</div><div class="value">{{ ml_metrics.rmse | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("r2") is not none %}
+        <div class="kv-card"><div class="label">R²</div><div class="value">{{ ml_metrics.r2 | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("mae") is not none %}
+        <div class="kv-card"><div class="label">MAE</div><div class="value">{{ ml_metrics.mae | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("silhouette") is not none %}
+        <div class="kv-card"><div class="label">Silhouette</div><div class="value">{{ ml_metrics.silhouette | num_fmt }}</div></div>
+        {% endif %}
+        {% if ml_metrics.get("cv_mean") is not none %}
+        <div class="kv-card"><div class="label">CV Mean</div><div class="value">{{ ml_metrics.cv_mean | num_fmt }}</div></div>
+        {% endif %}
+      </div>
+
+      {% set ml_charts = ml_metrics.get("charts", []) %}
+      {% if ml_charts %}
+      <div class="chart-grid">
+        {% for img_b64 in ml_charts %}
+        <img class="chart-img" src="data:image/png;base64,{{ img_b64 }}" alt="ML chart">
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 5. FEATURE IMPORTANCE ════════════════════════════════════════════ -->
+  {% if feature_importance %}
+  <div class="section">
+    <div class="section-header"><h2>Feature Importance</h2></div>
+    <div class="section-body">
+
+      {% set fi_chart = feature_importance.get("chart") %}
+      {% if fi_chart %}
+      <img class="chart-img" src="data:image/png;base64,{{ fi_chart }}" alt="Feature importance chart">
+      {% endif %}
+
+      {% set fi_entries = feature_importance.get("entries", []) %}
+      {% if fi_entries %}
+      <table style="margin-top:12px">
+        <thead><tr><th>Rank</th><th>Feature</th><th>Importance</th></tr></thead>
+        <tbody>
+          {% for entry in fi_entries %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ entry.feature }}</td>
+            <td>{{ entry.importance | num_fmt }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 6. GenAI INSIGHTS ════════════════════════════════════════════════ -->
+  {% if genai_insights %}
+  <div class="section">
+    <div class="section-header"><h2>AI-Generated Insights</h2></div>
+    <div class="section-body">
+      {% for label, text in genai_insights.items() %}
+      {% if text %}
+      <h3 style="margin:0 0 6px;font-size:13px;color:#57606a;text-transform:uppercase;letter-spacing:.04em">{{ label }}</h3>
+      <div class="insight-block">{{ text }}</div>
+      {% if not loop.last %}<div style="margin-top:16px"></div>{% endif %}
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 7. NL QUERY RESULTS ══════════════════════════════════════════════ -->
+  {% if nl_query_results %}
+  <div class="section">
+    <div class="section-header"><h2>Natural-Language Query Results</h2></div>
+    <div class="section-body">
+      {% for result in nl_query_results %}
+      <div class="qa-block">
+        <div class="qa-question">Q: {{ result.question }}</div>
+        <div class="qa-answer">
+          {% if result.explanation %}
+            {{ result.explanation }}
+          {% elif result.computed_result is not none %}
+            {{ result.computed_result }}
+          {% elif result.error %}
+            <em style="color:#57606a">{{ result.error }}</em>
+          {% else %}
+            <em style="color:#57606a">No result available.</em>
+          {% endif %}
+        </div>
+      </div>
+      {% if not loop.last %}<div style="margin-top:8px"></div>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ 8. RECOMMENDATIONS ═══════════════════════════════════════════════ -->
+  {% if recommendations %}
+  <div class="section">
+    <div class="section-header"><h2>Recommendations</h2></div>
+    <div class="section-body">
+      {% if recommendations is string %}
+      <div class="insight-block">{{ recommendations }}</div>
+      {% elif recommendations is iterable %}
+      <ul class="rec-list">
+        {% for rec in recommendations %}<li>{{ rec }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══ FOOTER ════════════════════════════════════════════════════════════ -->
+  <div class="report-footer">Made with IBM Bob</div>
+
+</div><!-- /.page -->
+</body>
+</html>
